@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Somatic oncogenicity worksheet — ClinGen/CGC/VICC</title>
+<meta name="description" content="Offline scoring worksheet for somatic variant oncogenicity using the ClinGen/CGC/VICC standards (Horak et al. 2022). Built by Dr Murphy Sun.">
+<meta name="author" content="Dr Murphy Sun">
+<!--
+  ============================================================================
+  SOMATIC ONCOGENICITY SCORING WORKSHEET
+  Implements: Horak P, Griffith M, Danos AM, et al. Standards for the
+  classification of pathogenicity of somatic variants in cancer
+  (oncogenicity): joint recommendations of ClinGen, CGC and VICC.
+  Genet Med. 2022;24(5):986-998. doi:10.1016/j.gim.2022.01.001
+
+  Criterion text, point weights, mutual exclusions and classification
+  thresholds are transcribed from Tables 2 and 3 and Figure 1 of that paper.
+
+  Built by Dr Murphy Sun.
+
+  DESIGN NOTES
+  - Runs entirely offline. No network requests, no external fonts or scripts,
+    no cookies, no localStorage. Nothing you type leaves this machine.
+  - The resource buttons construct a URL and open it in a new tab. That is
+    ordinary navigation performed by you, not an API call by this page.
+  - This worksheet performs arithmetic and records the assessment you make.
+    It does not assess evidence and does not decide anything.
+  ============================================================================
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    --paper:      #FBFAF8;
+    --panel:      #F2F0EC;
+    --ink:        #1C1F26;
+    --ink-soft:   #585D68;
+    --ink-faint:  #8B909B;
+    --rule:       #D9D6D0;
+    --rule-firm:  #B9B5AD;
+
+    --onc:        #8C2F26;
+    --onc-wash:   #F6EAE7;
+    --ben:        #1D5A56;
+    --ben-wash:   #E6F0EE;
+    --vus:        #7A6417;
+    --vus-wash:   #F4EFDF;
+
+    --focus:      #2E5EA8;
+
+    --sans: ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:     #16181C;
+      --panel:     #1D2026;
+      --ink:       #E6E4E0;
+      --ink-soft:  #A2A7B2;
+      --ink-faint: #6E737E;
+      --rule:      #30343B;
+      --rule-firm: #474C55;
+      --onc:       #E0897C;
+      --onc-wash:  #2E1D1A;
+      --ben:       #6FBDB4;
+      --ben-wash:  #16272A;
+      --vus:       #D4B96A;
+      --vus-wash:  #272216;
+      --focus:     #7FA8E8;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:     #16181C;
+    --panel:     #1D2026;
+    --ink:       #E6E4E0;
+    --ink-soft:  #A2A7B2;
+    --ink-faint: #6E737E;
+    --rule:      #30343B;
+    --rule-firm: #474C55;
+    --onc:       #E0897C;
+    --onc-wash:  #2E1D1A;
+    --ben:       #6FBDB4;
+    --ben-wash:  #16272A;
+    --vus:       #D4B96A;
+    --vus-wash:  #272216;
+    --focus:     #7FA8E8;
+  }
+
+  *, *::before, *::after { box-sizing: inherit; }
+
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  a { color: var(--focus); }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  /* ---------------------------------------------------------- masthead -- */
+
+  header.masthead {
+    border-bottom: 1px solid var(--rule-firm);
+    padding: 1.6rem 1.4rem 1.2rem;
+    max-width: 1340px;
+    margin: 0 auto;
+  }
+  .masthead h1 {
+    font-size: 1.32rem;
+    font-weight: 620;
+    letter-spacing: -0.012em;
+    margin: 0 0 .3rem;
+  }
+  .masthead p {
+    margin: 0;
+    max-width: 68ch;
+    color: var(--ink-soft);
+    font-size: .875rem;
+  }
+  .masthead .byline {
+    font-size: .84rem;
+    color: var(--ink-soft);
+    margin: 0 0 .5rem;
+  }
+  .masthead .byline a { color: var(--ink-soft); }
+  .masthead .cite {
+    font-size: .8rem;
+    color: var(--ink-faint);
+    margin-top: .45rem;
+  }
+
+  /* ------------------------------------------------------------ layout -- */
+
+  .shell {
+    max-width: 1340px;
+    margin: 0 auto;
+    padding: 0 1.4rem 5rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+  }
+  @media (min-width: 1040px) {
+    .shell {
+      grid-template-columns: minmax(0, 1fr) 24rem;
+      align-items: start;
+      gap: 2.6rem;
+    }
+  }
+
+  section { margin-top: 2rem; }
+
+  h2 {
+    font-size: .95rem;
+    font-weight: 620;
+    letter-spacing: -0.005em;
+    margin: 0 0 .15rem;
+  }
+  .section-note {
+    font-size: .82rem;
+    color: var(--ink-soft);
+    margin: 0 0 .9rem;
+    max-width: 70ch;
+  }
+
+  /* ------------------------------------------------------------ fields -- */
+
+  .fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: .75rem 1rem;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 1rem;
+    background: var(--panel);
+  }
+  .field { display: flex; flex-direction: column; gap: .25rem; }
+  .field label {
+    font-size: .76rem;
+    color: var(--ink-soft);
+    font-weight: 540;
+  }
+  .field input, .field select {
+    font: inherit;
+    font-size: .875rem;
+    padding: .4rem .5rem;
+    border: 1px solid var(--rule-firm);
+    border-radius: 2px;
+    background: var(--paper);
+    color: var(--ink);
+    min-width: 0;
+  }
+
+  /* --------------------------------------------------------- resources -- */
+
+  .resources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-top: .75rem;
+  }
+  .resources a {
+    font-size: .8rem;
+    text-decoration: none;
+    color: var(--ink);
+    border: 1px solid var(--rule-firm);
+    border-radius: 2px;
+    padding: .3rem .6rem;
+    background: var(--paper);
+    transition: background .12s;
+  }
+  .resources a:hover { background: var(--panel); }
+  .resources a[aria-disabled="true"] {
+    opacity: .4;
+    pointer-events: none;
+  }
+
+  /* ------------------------------------------------------------ ledger -- */
+
+  .ledger {
+    border-top: 1.5px solid var(--ink);
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .ledger.benign { border-color: var(--ben); }
+  .ledger.oncogenic { border-color: var(--onc); }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1.4rem 4.2rem minmax(0,1fr) 3.1rem;
+    gap: .6rem;
+    align-items: start;
+    padding: .72rem .2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .row:last-child { border-bottom: none; }
+  .row.blocked { opacity: .42; }
+  .row.active-onc { background: var(--onc-wash); }
+  .row.active-ben { background: var(--ben-wash); }
+
+  .row input[type=checkbox] {
+    width: 1.05rem; height: 1.05rem;
+    margin: .18rem 0 0;
+    accent-color: var(--onc);
+    cursor: pointer;
+  }
+  .ledger.benign .row input[type=checkbox] { accent-color: var(--ben); }
+  .row input[type=checkbox]:disabled { cursor: not-allowed; }
+
+  .code {
+    font-weight: 650;
+    font-size: .84rem;
+    letter-spacing: .01em;
+    padding-top: .12rem;
+  }
+  .ledger.oncogenic .code { color: var(--onc); }
+  .ledger.benign .code { color: var(--ben); }
+
+  .criterion { font-size: .875rem; }
+  .criterion .strength {
+    color: var(--ink-faint);
+    font-size: .78rem;
+    display: block;
+    margin-bottom: .1rem;
+  }
+  .caveat {
+    font-size: .79rem;
+    color: var(--ink-soft);
+    margin-top: .35rem;
+    padding-left: .7rem;
+    border-left: 2px solid var(--rule);
+  }
+  .check {
+    margin-top: .45rem;
+    padding-left: .7rem;
+    border-left: 2px solid var(--rule-firm);
+  }
+  .check p {
+    margin: 0 0 .3rem;
+    font-size: .79rem;
+    color: var(--ink-soft);
+  }
+  .check-links { display: flex; flex-wrap: wrap; gap: .3rem; }
+  .check-links a {
+    font-size: .74rem;
+    text-decoration: none;
+    color: var(--ink);
+    border: 1px solid var(--rule-firm);
+    border-radius: 2px;
+    padding: .13rem .42rem;
+    background: var(--paper);
+    white-space: nowrap;
+  }
+  .check-links a:hover { background: var(--panel); }
+  .check-links a[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+
+  .conflict {
+    font-size: .79rem;
+    color: var(--onc);
+    margin-top: .35rem;
+    font-weight: 540;
+  }
+  .ledger.benign .conflict { color: var(--ben); }
+
+  .pts {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 620;
+    font-size: .95rem;
+    padding-top: .05rem;
+  }
+  .ledger.oncogenic .pts { color: var(--onc); }
+  .ledger.benign .pts { color: var(--ben); }
+
+  .downgrade {
+    margin-top: .4rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .79rem;
+    color: var(--ink-soft);
+  }
+  .downgrade select {
+    font: inherit;
+    font-size: .79rem;
+    padding: .15rem .3rem;
+    border: 1px solid var(--rule-firm);
+    border-radius: 2px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  /* ------------------------------------------------------------- score -- */
+
+  .scorepanel {
+    position: sticky;
+    top: calc(1rem + env(safe-area-inset-top, 0px));
+    border: 1px solid var(--rule-firm);
+    border-radius: 2px;
+    background: var(--panel);
+    padding: 1.1rem;
+  }
+  @media (max-width: 1039px) {
+    .scorepanel { position: static; margin-top: 2rem; }
+  }
+
+  .total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .6rem;
+  }
+  .total .n {
+    font-size: 2.6rem;
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .total .lbl { font-size: .78rem; color: var(--ink-soft); }
+
+  .verdict {
+    margin-top: .7rem;
+    font-size: 1.02rem;
+    font-weight: 620;
+    letter-spacing: -0.008em;
+  }
+  .verdict.onc { color: var(--onc); }
+  .verdict.ben { color: var(--ben); }
+  .verdict.vus { color: var(--vus); }
+
+  /* the scale */
+  .scale { margin-top: 1rem; }
+  .scale-bar {
+    position: relative;
+    height: 11px;
+    display: flex;
+    border: 1px solid var(--rule-firm);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .scale-bar span { display: block; height: 100%; }
+  .band-ben   { background: var(--ben);  opacity: .85; }
+  .band-lben  { background: var(--ben);  opacity: .42; }
+  .band-vus   { background: var(--vus);  opacity: .40; }
+  .band-lonc  { background: var(--onc);  opacity: .42; }
+  .band-onc   { background: var(--onc);  opacity: .85; }
+
+  .marker {
+    position: absolute;
+    top: -5px; bottom: -5px;
+    width: 2px;
+    background: var(--ink);
+    transition: left .18s ease;
+  }
+  .scale-ticks {
+    position: relative;
+    height: 1.1rem;
+    margin-top: .3rem;
+    font-size: .68rem;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .scale-ticks i {
+    position: absolute;
+    transform: translateX(-50%);
+    font-style: normal;
+  }
+  .scale-key {
+    margin-top: .5rem;
+    font-size: .74rem;
+    color: var(--ink-soft);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .1rem .7rem;
+  }
+  .scale-key b { font-weight: 560; font-variant-numeric: tabular-nums; }
+
+  .applied {
+    margin-top: 1.1rem;
+    border-top: 1px solid var(--rule);
+    padding-top: .8rem;
+    font-size: .82rem;
+  }
+  .applied h3 {
+    font-size: .78rem; font-weight: 600; margin: 0 0 .4rem;
+    color: var(--ink-soft);
+  }
+  .applied ul { margin: 0; padding-left: 1.1rem; }
+  .applied li { margin-bottom: .12rem; }
+  .applied .none { color: var(--ink-faint); }
+
+  /* ---------------------------------------------------------- narrative -- */
+
+  .narrative {
+    font-family: var(--serif);
+    font-size: .95rem;
+    line-height: 1.62;
+    white-space: pre-wrap;
+    border: 1px solid var(--rule-firm);
+    border-radius: 2px;
+    background: var(--paper);
+    padding: 1rem 1.1rem;
+    min-height: 7rem;
+    max-width: 78ch;
+  }
+
+  .actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .7rem; }
+  button.act {
+    font: inherit;
+    font-size: .84rem;
+    padding: .42rem .9rem;
+    border: 1px solid var(--rule-firm);
+    border-radius: 2px;
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button.act:hover { background: var(--panel); }
+  button.act.primary {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  button.act.primary:hover { opacity: .88; }
+
+  .copied { font-size: .82rem; color: var(--ben); align-self: center; }
+
+  footer.note {
+    max-width: 1340px;
+    margin: 0 auto;
+    padding: 1.6rem 1.4rem 3rem;
+    border-top: 1px solid var(--rule);
+    font-size: .8rem;
+    color: var(--ink-soft);
+    max-width: 78ch;
+  }
+  footer.note p { margin: .4rem 0; }
+
+  /* ------------------------------------------------------------- print -- */
+
+  @media print {
+    :root { --paper: #fff; --panel: #fff; --ink: #000; }
+    body { font-size: 11pt; }
+    .resources, .actions, .scorepanel .scale, button { display: none !important; }
+    .row.blocked { display: none; }
+    .row:not(.active-onc):not(.active-ben) { display: none; }
+    .shell { display: block; max-width: none; }
+    .scorepanel { position: static; border: 1px solid #000; page-break-inside: avoid; }
+    .narrative { border: 1px solid #000; page-break-inside: avoid; }
+    .section-note, .caveat { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <h1>Somatic oncogenicity worksheet</h1>
+  <p class="byline">Built by Dr Murphy Sun · <a id="srclink" href="https://github.com/Viscaragold">source on GitHub</a></p>
+  <p>Record which evidence criteria a variant meets. The worksheet sums the points, applies the
+     classification thresholds, and writes the justification paragraph for your report.</p>
+  <p class="cite">Criteria and thresholds transcribed from Horak P, Griffith M, Danos AM, et al.
+     <em>Genet Med</em> 2022;24(5):986–998. Runs offline; nothing you type leaves this computer.</p>
+</header>
+
+<div class="shell">
+
+<main>
+
+  <section>
+    <h2>Variant</h2>
+    <p class="section-note">Use MANE Select transcripts and HGVS nomenclature. Classify in the context of
+       the relevant tumour type, specified at the most generic level that applies. Enter a gene symbol
+       to enable the pre-filled lookups; sites that take no gene in their URL open at their search box.</p>
+    <div class="fields">
+      <div class="field">
+        <label for="gene">Gene</label>
+        <input id="gene" placeholder="FLT3" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="transcript">Transcript</label>
+        <input id="transcript" placeholder="NM_004119.3" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="hgvsc">Variant (c.)</label>
+        <input id="hgvsc" placeholder="c.2503G&gt;T" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="hgvsp">Variant (p.)</label>
+        <input id="hgvsp" placeholder="p.Asp835Tyr" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="tumour">Tumour type</label>
+        <input id="tumour" placeholder="haematopoietic neoplasms" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="allele">ClinGen Allele Registry ID</label>
+        <input id="allele" placeholder="CA123456" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="curator">Curator</label>
+        <input id="curator" placeholder="your name" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="cdate">Date</label>
+        <input id="cdate" type="date">
+      </div>
+    </div>
+
+    <div class="resources" id="resources">
+      <a data-res="gnomad"   target="_blank" rel="noopener">gnomAD</a>
+      <a data-res="hotspots" target="_blank" rel="noopener">cancerhotspots</a>
+      <a data-res="cosmic"   target="_blank" rel="noopener">COSMIC</a>
+      <a data-res="clinvar"  target="_blank" rel="noopener">ClinVar</a>
+      <a data-res="civic"    target="_blank" rel="noopener">CIViC</a>
+      <a data-res="oncokb"   target="_blank" rel="noopener">OncoKB</a>
+      <a data-res="cbio"     target="_blank" rel="noopener">cBioPortal</a>
+      <a data-res="census"   target="_blank" rel="noopener">Cancer Gene Census</a>
+      <a data-res="uniprot"  target="_blank" rel="noopener">UniProt</a>
+      <a data-res="pubmed"   target="_blank" rel="noopener">PubMed</a>
+      <a data-res="spliceai" target="_blank" rel="noopener">SpliceAI</a>
+      <a data-res="cravat"   target="_blank" rel="noopener">OpenCRAVAT</a>
+      <a data-res="registry" target="_blank" rel="noopener">Allele Registry</a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Evidence of oncogenicity</h2>
+    <p class="section-note">Tick each criterion the evidence satisfies. Criteria excluded by one you have
+       already applied are greyed out with the reason shown.</p>
+    <div class="ledger oncogenic" id="onc-ledger"></div>
+  </section>
+
+  <section>
+    <h2>Evidence of benign impact</h2>
+    <p class="section-note">Benign criteria subtract points. Oncogenic and benign evidence can both apply
+       to the same variant; the worksheet sums them.</p>
+    <div class="ledger benign" id="ben-ledger"></div>
+  </section>
+
+  <section>
+    <h2>Justification</h2>
+    <p class="section-note">Written from the criteria you applied, ready to paste into the report.
+       Edit freely before use.</p>
+    <div class="narrative" id="narrative" contenteditable="true" spellcheck="false"></div>
+    <div class="actions">
+      <button class="act primary" id="copy">Copy justification</button>
+      <button class="act" id="print">Print worksheet</button>
+      <button class="act" id="reset">Clear and start again</button>
+      <span class="copied" id="copied" hidden>Copied</span>
+    </div>
+  </section>
+
+</main>
+
+<aside>
+  <div class="scorepanel">
+    <div class="total">
+      <span class="n" id="total">0</span>
+      <span class="lbl">points</span>
+    </div>
+    <div class="verdict vus" id="verdict">Variant of uncertain significance</div>
+
+    <div class="scale">
+      <div class="scale-bar" id="bar">
+        <span class="band-ben"  style="flex:3"></span>
+        <span class="band-lben" style="flex:6"></span>
+        <span class="band-vus"  style="flex:6"></span>
+        <span class="band-lonc" style="flex:4"></span>
+        <span class="band-onc"  style="flex:5"></span>
+        <div class="marker" id="marker"></div>
+      </div>
+      <div class="scale-ticks" id="ticks"></div>
+      <div class="scale-key">
+        <b>≥ 10</b><span>Oncogenic</span>
+        <b>6 to 9</b><span>Likely oncogenic</span>
+        <b>0 to 5</b><span>Uncertain significance</span>
+        <b>−6 to −1</b><span>Likely benign</span>
+        <b>≤ −7</b><span>Benign</span>
+      </div>
+    </div>
+
+    <div class="applied">
+      <h3>Criteria applied</h3>
+      <div id="applied-list"><p class="none">None yet.</p></div>
+    </div>
+  </div>
+</aside>
+
+</div>
+
+<footer class="note">
+  <p><strong>Scope.</strong> This SOP covers somatic single nucleotide variants and small insertions
+     or deletions, including deletions within a single gene. It is not for germline cancer
+     predisposition variants, fusions, copy number variants or other chromosomal rearrangements.</p>
+  <p><strong>Use alongside, not instead of, clinical actionability assessment.</strong> Oncogenicity and
+     AMP/ASCO/CAP tier are different questions. Classify oncogenicity first, then assess actionability.</p>
+  <p><strong>This worksheet does not assess evidence.</strong> It records your assessment, performs the
+     arithmetic and drafts the wording. Every judgement remains yours, and routine clinical decisions
+     should not be made on variants of uncertain significance.</p>
+  <p>Built by Dr Murphy Sun. Criteria text transcribed from Horak et al., <em>Genet Med</em> 2022.</p>
+</footer>
+
+<script>
+"use strict";
+
+/* ===========================================================================
+   CRITERIA — transcribed from Horak et al. 2022, Tables 2 and 3.
+   `excludedBy` holds the codes that, when applied, forbid this criterion.
+   `downgradable` marks the six criteria the paper permits downgrading.
+   `tier` groups the three cancerhotspots criteria, which are mutually
+   exclusive by their own sample-count definitions.
+   ========================================================================= */
+
+/* Resource registry. Each builder returns a URL or null when it needs a gene
+   symbol it does not have. Static entries ignore the arguments because those
+   sites accept no gene or variant in their URL — you land on their search box. */
+const RES = {
+  gnomad:    { label:"gnomAD",          url:(g,p)=> g ? "https://gnomad.broadinstitute.org/search?query=" + enc(g,p) : null },
+  hotspots:  { label:"cancerhotspots",  url:()=> "https://www.cancerhotspots.org/", static:true },
+  cosmic:    { label:"COSMIC",          url:(g,p)=> g ? "https://cancer.sanger.ac.uk/cosmic/search?q=" + enc(g,p) : null },
+  census:    { label:"Cancer Gene Census", url:()=> "https://cancer.sanger.ac.uk/census", static:true },
+  clinvar:   { label:"ClinVar",         url:(g,p)=> g ? "https://www.ncbi.nlm.nih.gov/clinvar/?term=" + enc(g,p) : null },
+  civic:     { label:"CIViC",           url:(g)=> g ? "https://civicdb.org/search/variants?q=" + encodeURIComponent(g) : null },
+  oncokb:    { label:"OncoKB",          url:(g)=> g ? "https://www.oncokb.org/gene/" + encodeURIComponent(g) : null },
+  cbio:      { label:"cBioPortal",      url:(g)=> g ? "https://www.cbioportal.org/results/mutations?gene_list=" + encodeURIComponent(g) : null },
+  pubmed:    { label:"PubMed",          url:(g,p)=> g ? "https://pubmed.ncbi.nlm.nih.gov/?term=" + enc(g,p) : null },
+  uniprot:   { label:"UniProt domains", url:(g)=> g ? "https://www.uniprot.org/uniprotkb?query=" + encodeURIComponent(g + " AND organism_id:9606") : null },
+  spliceai:  { label:"SpliceAI",        url:()=> "https://spliceailookup.broadinstitute.org/", static:true },
+  varseak:   { label:"varSEAK",         url:()=> "https://varseak.bio/", static:true },
+  mutsplice: { label:"MutSpliceDB",     url:()=> "https://brb.nci.nih.gov/splicing", static:true },
+  cravat:    { label:"OpenCRAVAT",      url:()=> "https://run.opencravat.org/", static:true },
+  registry:  { label:"Allele Registry", url:()=> "http://reg.clinicalgenome.org/", static:true }
+};
+
+function enc(gene, prot) {
+  return encodeURIComponent([gene, prot].filter(Boolean).join(" "));
+}
+
+const ONCOGENIC = [
+  { code:"OVS1", pts:8, strength:"Very strong",
+    text:"Null variant (nonsense, frameshift, canonical ±1 or 2 splice sites, initiation codon, single or multi-exon deletion) in a bona fide tumour suppressor gene.",
+    caveat:"Caution with predicted loss-of-function variants at the extreme 3′ end after the nonsense-mediated decay site; with splice variants predicted to cause exon skipping that leave the rest of the protein intact; where a well-known alternative isoform preserves tumour suppressor function; and in the presence of multiple transcripts. May also be used for splicing variants to −16 at the acceptor and +5 at the donor site where there is experimental evidence of a splicing defect.",
+    downgradable:true ,
+    check:{ hint:"Confirm the gene is a bona fide tumour suppressor, then confirm the variant truly causes loss of function. For splice variants, look for experimental evidence of the splicing defect.", res:["census","oncokb","spliceai","mutsplice"] }
+  },
+
+  { code:"OS1", pts:4, strength:"Strong",
+    text:"Same amino acid change as a previously established oncogenic variant (using this standard), regardless of nucleotide change.",
+    caveat:"Beware of changes that act on splicing rather than at the protein level." ,
+    check:{ hint:"Look for an existing oncogenic classification of the same amino acid change, made under this standard.", res:["oncokb","civic","clinvar"] }
+  },
+
+  { code:"OS2", pts:4, strength:"Strong",
+    text:"Well-established in vitro or in vivo functional studies supportive of an oncogenic effect of the variant.",
+    caveat:"Reproducible and robust studies are the most well established. If OS1 applies, this criterion may be used only if the functional studies are based on the particular nucleotide change.",
+    downgradable:true ,
+    check:{ hint:"Read the functional literature yourself; judge whether the assay is well established and reproducible.", res:["pubmed","civic"] }
+  },
+
+  { code:"OS3", pts:4, strength:"Strong", tier:"hotspot",
+    text:"In a cancerhotspots.org hotspot with at least 50 samples carrying a somatic variant at the same amino acid position, and the same amino acid change in at least 10 samples.",
+    caveat:"Caution with hotspots driven by truncating variants. For tumour types poorly covered by cancerhotspots.org, COSMIC or a tumour-type-specific study may be used. Cannot be used if OS1 applies, unless hotspots can be observed for the particular nucleotide change.",
+    excludedBy:["OS1"] ,
+    check:{ hint:"Read two counts off cancerhotspots: samples at this amino acid position, and samples with this exact amino acid change.", res:["hotspots","cosmic"] }
+  },
+
+  { code:"OM1", pts:2, strength:"Moderate",
+    text:"Located in a critical and well-established part of a functional domain, for example the active site of an enzyme.",
+    excludedBy:["OS1","OS3"], downgradable:true ,
+    check:{ hint:"Check where the residue sits in the protein — active site, binding pocket, catalytic domain.", res:["uniprot","cbio"] }
+  },
+
+  { code:"OM2", pts:2, strength:"Moderate",
+    text:"Protein length changes from in-frame deletions or insertions in a known oncogene or tumour suppressor gene, or stop-loss variants in a known tumour suppressor gene.",
+    excludedBy:["OVS1"], downgradable:true ,
+    check:{ hint:"Confirm the gene is an established oncogene or tumour suppressor before applying this.", res:["census","oncokb"] }
+  },
+
+  { code:"OM3", pts:2, strength:"Moderate", tier:"hotspot",
+    text:"In a cancerhotspots.org hotspot with fewer than 50 samples carrying a somatic variant at the same amino acid position, and the same amino acid change in at least 10 samples.",
+    caveat:"Caution with hotspots driven by truncating variants. For tumour types poorly covered by cancerhotspots.org, COSMIC or a tumour-type-specific study may be used.",
+    excludedBy:["OM1","OM4"] ,
+    check:{ hint:"Same two counts as OS3, read off cancerhotspots.", res:["hotspots","cosmic"] }
+  },
+
+  { code:"OM4", pts:2, strength:"Moderate",
+    text:"Missense variant at an amino acid residue where a different missense variant has been determined to be oncogenic (using this standard).",
+    caveat:"The amino acid difference from reference should be greater than, or at least approximately the same as, that of the change determined to be oncogenic — compare using Grantham distance, Epstein coefficient or Miyata distance. Beware of changes that act on splicing rather than at the protein level.",
+    excludedBy:["OS1","OS3","OM1"], downgradable:true ,
+    check:{ hint:"Find whether another missense change at this residue is already classified oncogenic, then compare amino acid distances. Grantham, Epstein or Miyata distance is not built in here — look it up and record your comparison.", res:["oncokb","civic","clinvar"] }
+  },
+
+  { code:"OP1", pts:1, strength:"Supporting",
+    text:"All utilised lines of computational evidence support an oncogenic effect (conservation, splicing impact, and so on).",
+    caveat:"Many in silico algorithms share inputs, so each cannot count as independent evidence. Use once per variant only." ,
+    check:{ hint:"Run your panel of predictors. Count them collectively as one line of evidence, not one each.", res:["cravat","spliceai"] }
+  },
+
+  { code:"OP2", pts:1, strength:"Supporting",
+    text:"Somatic variant in a gene in a malignancy with a single genetic aetiology, for example bi-allelic RB1 inactivation in retinoblastoma.",
+    caveat:"A small fraction of cases may arise by an alternative mechanism, and histological similarity can cause misdiagnosis." ,
+    check:{ hint:"A literature question rather than a database one: does this malignancy have a single genetic aetiology?", res:["pubmed"] }
+  },
+
+  { code:"OP3", pts:1, strength:"Supporting", tier:"hotspot",
+    text:"In a cancerhotspots.org hotspot where the particular amino acid change count is below 10.",
+    caveat:"Caution with hotspots driven by truncating variants. For tumour types poorly covered by cancerhotspots.org, COSMIC or a tumour-type-specific study may be used." ,
+    check:{ hint:"The hotspot exists but this particular amino acid change is seen in fewer than 10 samples.", res:["hotspots","cosmic"] }
+  },
+
+  { code:"OP4", pts:1, strength:"Supporting",
+    text:"Absent from controls, or present at an extremely low frequency, in gnomAD.",
+    caveat:"Population data for insertions and deletions may be poorly called by next-generation sequencing, and may contain somatic variants arising from clonal haematopoiesis." ,
+    check:{ hint:"Check the variant is absent or at extremely low frequency. Inspect the read data for suspiciously low VAF, which can mark clonal haematopoiesis rather than germline.", res:["gnomad"] }
+  }
+];
+
+const BENIGN = [
+  { code:"SBVS1", pts:-8, strength:"Very strong", tier:"maf",
+    text:"Minor allele frequency above 5% in gnomAD in any of the five general continental populations: African, East Asian, European (non-Finnish), Latino, South Asian.",
+    caveat:"If the gene causes predisposition to hereditary cancer, the relevant ACMG/AMP ClinGen germline expert panel gene-specific guidelines must be consulted to set a cutoff reflecting disease prevalence. Finnish European and Ashkenazi Jewish populations may be used only if founder effects have been ruled out for the gene." ,
+    check:{ hint:"Read the minor allele frequency in each of the five general continental populations, not the global figure.", res:["gnomad"] }
+  },
+
+  { code:"SBS1", pts:-4, strength:"Strong", tier:"maf",
+    text:"Minor allele frequency above 1% in gnomAD in any of the five general continental populations.",
+    caveat:"If the gene causes predisposition to hereditary cancer, consult the relevant ClinGen germline expert panel gene-specific guidelines for an appropriate cutoff." ,
+    check:{ hint:"Same five populations, 1% threshold.", res:["gnomad"] }
+  },
+
+  { code:"SBS2", pts:-4, strength:"Strong",
+    text:"Well-established in vitro or in vivo functional studies show no oncogenic effect.",
+    downgradable:true ,
+    check:{ hint:"Look for well-conducted studies showing no oncogenic effect, with positive controls.", res:["pubmed","civic"] }
+  },
+
+  { code:"SBP1", pts:-1, strength:"Supporting",
+    text:"All utilised lines of computational evidence suggest no impact of the variant (conservation, splicing impact, and so on).",
+    caveat:"Many in silico algorithms share inputs, so each cannot count as independent evidence. Use once per variant only." ,
+    check:{ hint:"Same predictor panel as OP1, pointing the other way. Use once per variant.", res:["cravat","spliceai"] }
+  },
+
+  { code:"SBP2", pts:-1, strength:"Supporting",
+    text:"A synonymous (silent) variant for which splicing prediction algorithms predict no impact on the splice consensus sequence nor creation of a new splice site, and the nucleotide is not highly conserved." ,
+    check:{ hint:"Confirm no predicted splice impact and that the nucleotide is not highly conserved.", res:["spliceai","varseak","cravat"] }
+  }
+];
+
+const DOWNGRADE_ONC = [
+  { label:"Very strong (8)", pts:8 },
+  { label:"Strong (4)",      pts:4 },
+  { label:"Moderate (2)",    pts:2 },
+  { label:"Supporting (1)",  pts:1 }
+];
+const DOWNGRADE_BEN = [
+  { label:"Very strong (−8)", pts:-8 },
+  { label:"Strong (−4)",      pts:-4 },
+  { label:"Moderate (−2)",    pts:-2 },
+  { label:"Supporting (−1)",  pts:-1 }
+];
+
+const ALL = [...ONCOGENIC, ...BENIGN];
+const byCode = Object.fromEntries(ALL.map(c => [c.code, c]));
+const state = {};   // code -> { on: bool, pts: number }
+
+ALL.forEach(c => { state[c.code] = { on:false, pts:c.pts }; });
+
+/* ------------------------------------------------------------- rendering */
+
+function buildLedger(list, mount, isBenign) {
+  mount.innerHTML = "";
+  list.forEach(c => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.id = "row-" + c.code;
+
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.id = "cb-" + c.code;
+    box.addEventListener("change", () => { state[c.code].on = box.checked; refresh(); });
+
+    const code = document.createElement("div");
+    code.className = "code";
+    code.textContent = c.code;
+
+    const body = document.createElement("div");
+    body.className = "criterion";
+
+    const strength = document.createElement("span");
+    strength.className = "strength";
+    strength.textContent = c.strength;
+    body.appendChild(strength);
+
+    const label = document.createElement("label");
+    label.setAttribute("for", "cb-" + c.code);
+    label.textContent = c.text;
+    label.style.cursor = "pointer";
+    body.appendChild(label);
+
+    if (c.caveat) {
+      const cav = document.createElement("div");
+      cav.className = "caveat";
+      cav.textContent = c.caveat;
+      body.appendChild(cav);
+    }
+
+    if (c.check) {
+      const chk = document.createElement("div");
+      chk.className = "check";
+
+      const hint = document.createElement("p");
+      hint.textContent = c.check.hint;
+      chk.appendChild(hint);
+
+      const strip = document.createElement("div");
+      strip.className = "check-links";
+      c.check.res.forEach(key => {
+        const r = RES[key];
+        if (!r) return;
+        const a = document.createElement("a");
+        a.dataset.res = key;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = r.label;
+        strip.appendChild(a);
+      });
+      chk.appendChild(strip);
+      body.appendChild(chk);
+    }
+
+    const conflict = document.createElement("div");
+    conflict.className = "conflict";
+    conflict.id = "conflict-" + c.code;
+    conflict.hidden = true;
+    body.appendChild(conflict);
+
+    if (c.downgradable) {
+      const dg = document.createElement("div");
+      dg.className = "downgrade";
+      const lab = document.createElement("label");
+      lab.setAttribute("for", "dg-" + c.code);
+      lab.textContent = "Evidence level:";
+      const sel = document.createElement("select");
+      sel.id = "dg-" + c.code;
+      const opts = isBenign ? DOWNGRADE_BEN : DOWNGRADE_ONC;
+      opts.filter(o => isBenign ? o.pts >= c.pts : o.pts <= c.pts)
+          .forEach(o => {
+            const opt = document.createElement("option");
+            opt.value = o.pts;
+            opt.textContent = o.label;
+            if (o.pts === c.pts) opt.selected = true;
+            sel.appendChild(opt);
+          });
+      sel.addEventListener("change", () => {
+        state[c.code].pts = parseInt(sel.value, 10);
+        refresh();
+      });
+      dg.appendChild(lab);
+      dg.appendChild(sel);
+      const hint = document.createElement("span");
+      hint.textContent = "downgrade if evidence is partial";
+      hint.style.color = "var(--ink-faint)";
+      dg.appendChild(hint);
+      body.appendChild(dg);
+    }
+
+    const pts = document.createElement("div");
+    pts.className = "pts";
+    pts.id = "pts-" + c.code;
+
+    row.append(box, code, body, pts);
+    mount.appendChild(row);
+  });
+}
+
+/* -------------------------------------------------------------- exclusions */
+
+function blockedReason(c) {
+  // explicit exclusions from the paper
+  if (c.excludedBy) {
+    const hit = c.excludedBy.filter(code => state[code].on);
+    if (hit.length) {
+      return "Not applicable while " + hit.join(" and ") + " " +
+             (hit.length > 1 ? "are" : "is") + " applied.";
+    }
+  }
+  // the three hotspot criteria are mutually exclusive by their sample-count
+  // definitions; likewise the two gnomAD frequency thresholds
+  if (c.tier) {
+    const sibling = ALL.find(o => o.tier === c.tier && o.code !== c.code && state[o.code].on);
+    if (sibling) {
+      return "Not applicable while " + sibling.code + " is applied — " +
+             (c.tier === "hotspot"
+               ? "the hotspot criteria are defined by mutually exclusive sample counts."
+               : "the frequency thresholds are mutually exclusive.");
+    }
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ score */
+
+function classify(total) {
+  if (total >= 10) return { name:"Oncogenic", cls:"onc" };
+  if (total >= 6)  return { name:"Likely oncogenic", cls:"onc" };
+  if (total >= 0)  return { name:"Variant of uncertain significance", cls:"vus" };
+  if (total >= -6) return { name:"Likely benign", cls:"ben" };
+  return { name:"Benign", cls:"ben" };
+}
+
+const SCALE_MIN = -10, SCALE_MAX = 14;
+
+function refresh() {
+  let total = 0;
+  const applied = [];
+
+  ALL.forEach(c => {
+    const reason = blockedReason(c);
+    const row = document.getElementById("row-" + c.code);
+    const box = document.getElementById("cb-" + c.code);
+    const conflict = document.getElementById("conflict-" + c.code);
+    const ptsEl = document.getElementById("pts-" + c.code);
+    const isBen = c.pts < 0;
+
+    if (reason) {
+      if (box.checked) { box.checked = false; state[c.code].on = false; }
+      box.disabled = true;
+      row.classList.add("blocked");
+      conflict.hidden = false;
+      conflict.textContent = reason;
+    } else {
+      box.disabled = false;
+      row.classList.remove("blocked");
+      conflict.hidden = true;
+    }
+
+    row.classList.toggle("active-onc", state[c.code].on && !isBen);
+    row.classList.toggle("active-ben", state[c.code].on && isBen);
+
+    const p = state[c.code].pts;
+    ptsEl.textContent = state[c.code].on ? (p > 0 ? "+" + p : String(p)) : "";
+
+    if (state[c.code].on) {
+      total += p;
+      applied.push({ code:c.code, pts:p, downgraded:p !== c.pts, text:c.text, strength:c.strength });
+    }
+  });
+
+  document.getElementById("total").textContent = total > 0 ? "+" + total : String(total);
+
+  const v = classify(total);
+  const vEl = document.getElementById("verdict");
+  vEl.textContent = v.name;
+  vEl.className = "verdict " + v.cls;
+
+  const clamped = Math.max(SCALE_MIN, Math.min(SCALE_MAX, total));
+  const pct = (clamped - SCALE_MIN) / (SCALE_MAX - SCALE_MIN) * 100;
+  document.getElementById("marker").style.left = pct + "%";
+
+  const list = document.getElementById("applied-list");
+  if (!applied.length) {
+    list.innerHTML = '<p class="none">None yet.</p>';
+  } else {
+    const ul = document.createElement("ul");
+    applied.forEach(a => {
+      const li = document.createElement("li");
+      li.textContent = a.code + " " + (a.pts > 0 ? "+" + a.pts : a.pts) +
+                       (a.downgraded ? " (downgraded)" : "");
+      ul.appendChild(li);
+    });
+    list.innerHTML = "";
+    list.appendChild(ul);
+  }
+
+  writeNarrative(applied, total, v.name);
+  updateLinks();
+}
+
+/* -------------------------------------------------------------- narrative */
+
+let narrativeEdited = false;
+document.getElementById("narrative").addEventListener("input", () => { narrativeEdited = true; });
+
+function val(id) { return document.getElementById(id).value.trim(); }
+
+function levelWord(pts) {
+  const a = Math.abs(pts);
+  return a === 8 ? "very strong" : a === 4 ? "strong" : a === 2 ? "moderate" : "supporting";
+}
+
+function writeNarrative(applied, total, verdict) {
+  if (narrativeEdited) return;
+
+  const gene = val("gene"), tx = val("transcript"), c = val("hgvsc"),
+        p = val("hgvsp"), tumour = val("tumour"), allele = val("allele"),
+        curator = val("curator"), date = val("cdate");
+
+  let name = gene || "This variant";
+  if (tx && c) name = (gene ? gene + " " : "") + tx + ":" + c;
+  else if (c) name = (gene ? gene + " " : "") + c;
+  if (p) name += " (" + p + ")";
+  if (allele) name += ", ClinGen Allele Registry " + allele;
+
+  const context = tumour ? " in " + tumour : "";
+
+  let out = name + context + " was classified for oncogenicity using the ClinGen/CGC/VICC " +
+            "standards for somatic variants (Horak et al., Genet Med 2022;24:986-998). ";
+
+  if (!applied.length) {
+    out += "No evidence criteria have been applied yet.";
+  } else {
+    const onc = applied.filter(a => a.pts > 0);
+    const ben = applied.filter(a => a.pts < 0);
+
+    const phrase = a => a.code + " (" + levelWord(a.pts) + ", " +
+                        (a.pts > 0 ? "+" + a.pts : a.pts) + ")" +
+                        (a.downgraded ? ", downgraded from " + levelWord(byCode[a.code].pts) : "");
+
+    if (onc.length) {
+      out += "Criteria applied in support of oncogenicity: " +
+             onc.map(phrase).join("; ") + ". ";
+    }
+    if (ben.length) {
+      out += (onc.length ? "Criteria applied in support of benign impact: " :
+                           "Criteria applied in support of benign impact: ") +
+             ben.map(phrase).join("; ") + ". ";
+    }
+
+    out += "The criteria sum to " + (total > 0 ? "+" + total : total) +
+           " point" + (Math.abs(total) === 1 ? "" : "s") +
+           ", which classifies this variant as " + verdict.toLowerCase() + ".";
+  }
+
+  if (curator || date) {
+    out += "\n\nAssessed by " + (curator || "—") + (date ? " on " + date : "") + ".";
+  }
+
+  document.getElementById("narrative").textContent = out;
+}
+
+/* ------------------------------------------------------------------ links */
+
+function updateLinks() {
+  const gene = val("gene");
+  const prot = val("hgvsp") || val("hgvsc");
+
+  document.querySelectorAll("a[data-res]").forEach(a => {
+    const r = RES[a.dataset.res];
+    if (!r) return;
+    const u = r.url(gene, prot);
+    if (u) {
+      a.href = u;
+      a.removeAttribute("aria-disabled");
+      a.title = r.static
+        ? "Opens its search page — this site takes no gene or variant in the URL"
+        : "Opens in a new tab, pre-filled";
+    } else {
+      a.removeAttribute("href");
+      a.setAttribute("aria-disabled", "true");
+      a.title = "Enter a gene symbol to enable this link";
+    }
+  });
+}
+
+/* ----------------------------------------------------------------- ticks */
+
+(function drawTicks() {
+  const el = document.getElementById("ticks");
+  [-10, -7, -1, 0, 5, 6, 9, 10, 14].forEach(t => {
+    const i = document.createElement("i");
+    i.textContent = t;
+    i.style.left = ((t - SCALE_MIN) / (SCALE_MAX - SCALE_MIN) * 100) + "%";
+    el.appendChild(i);
+  });
+})();
+
+/* --------------------------------------------------------------- actions */
+
+document.getElementById("copy").addEventListener("click", async () => {
+  const text = document.getElementById("narrative").innerText;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const r = document.createRange();
+    r.selectNodeContents(document.getElementById("narrative"));
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    document.execCommand("copy");
+    s.removeAllRanges();
+  }
+  const tag = document.getElementById("copied");
+  tag.hidden = false;
+  setTimeout(() => { tag.hidden = true; }, 1600);
+});
+
+document.getElementById("print").addEventListener("click", () => window.print());
+
+document.getElementById("reset").addEventListener("click", () => {
+  if (!confirm("Clear this worksheet and start again?")) return;
+  ALL.forEach(c => {
+    state[c.code] = { on:false, pts:c.pts };
+    const box = document.getElementById("cb-" + c.code);
+    if (box) box.checked = false;
+    const dg = document.getElementById("dg-" + c.code);
+    if (dg) dg.value = String(c.pts);
+  });
+  ["gene","transcript","hgvsc","hgvsp","tumour","allele","curator"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+  narrativeEdited = false;
+  refresh();
+});
+
+["gene","transcript","hgvsc","hgvsp","tumour","allele","curator","cdate"].forEach(id => {
+  document.getElementById(id).addEventListener("input", () => { refresh(); });
+});
+
+/* ------------------------------------------------------------------ init */
+
+buildLedger(ONCOGENIC, document.getElementById("onc-ledger"), false);
+buildLedger(BENIGN,    document.getElementById("ben-ledger"), true);
+document.getElementById("cdate").valueAsDate = new Date();
+refresh();
+</script>
+
+</body>
+</html>
